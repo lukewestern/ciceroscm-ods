@@ -15,9 +15,7 @@ data_dir = os.path.join(os.path.dirname(__file__), "../", "tests", "test-data")
 cscm = CICEROSCM(
     {
         "gaspamfile": os.path.join(data_dir, "gases_v1RCMIP.txt"),
-        "nystart": 1900,
-        "emstart": 1950,
-        "nyend": 2050,
+        "nyend": 2100,
         "concentrations_file": os.path.join(data_dir, "ssp245_conc_RCMIP.txt"),
         "emissions_file": os.path.join(data_dir, "ssp245_em_RCMIP.txt"),
         "nat_ch4_file": os.path.join(data_dir, "natemis_ch4.txt"),
@@ -25,9 +23,8 @@ cscm = CICEROSCM(
     },
 )
 
-        
+
 prefix = "test_new"
 outdir = os.path.join(os.getcwd(), "output_test")
 
-cscm._run({"output_folder": outdir,
-           "output_prefix": prefix})
+cscm._run({"output_folder": outdir, "output_prefix": prefix})
