@@ -3,7 +3,7 @@ from setuptools.command.test import test as TestCommand
 
 import versioneer
 
-PACKAGE_NAME = "openscm-runner"
+PACKAGE_NAME = "ciceroscm"
 AUTHORS = [
     ("Marit Sandstad", "marit.sandstad@cicero.oslo.no"),
 ]
@@ -21,6 +21,7 @@ REQUIREMENTS = [
     "python-dotenv",
     "scmdata>=0.7.4",
     "tqdm",
+    "matplotlib>=3.4",
 ]
 
 REQUIREMENTS_NOTEBOOKS = [

@@ -9,109 +9,11 @@ import pandas as pd
 
 from ._utils import cut_and_check_pamset
 from .concentrations_emissions_handler import ConcentrationsEmissionsHandler
+from .input_handler import InputHandler
+from .make_plots import plot_output1
 from .upwelling_diffusion_model import UpwellingDiffusionModel
 
 LOGGER = logging.getLogger(__name__)
-
-default_data_dir = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), "default_data"
-)
-
-
-def check_inputfiles(cfg):
-    """
-    Check whether input files are present or not
-
-    Checking configuration dictionary to see whether
-    it necessary files for concentrations or
-    emissions run are present.
-    If natural emissions files are not found in cfg,
-    standard file location is used.
-
-    Parameters
-    ----------
-    cfg : dict
-       Configurations dictionary which should contain
-       locations of necessary files.
-
-    Returns
-    -------
-    dict
-        cfg possible augmented with standard locations
-        for natural emissions files
-
-    Raises
-    ------
-    FileNotFoundError
-         If files are not found
-    """
-    if not os.path.exists(cfg["gaspamfile"]):
-        raise FileNotFoundError(
-            f"Concentration input file {cfg['concentrations_file']} not found"
-        )
-    if not os.path.exists(cfg["concentrations_file"]):
-        raise FileNotFoundError(
-            f"Concentration input file {cfg['concentrations_file']} not found"
-        )
-    if not os.path.exists(cfg["emissions_file"]):
-        raise FileNotFoundError(
-            f"Emission input file {cfg['emissions_file']} not found"
-        )
-    if "nat_ch4_file" not in cfg:
-        LOGGER.warning(
-            "Did not find prescribed nat_ch4_file or none was given. Looking in standard path",
-        )
-        cfg["nat_ch4_file"] = os.path.join(
-            os.getcwd(), "input_OTHER", "NATEMIS", "natemis_ch4.txt"
-        )
-    if not os.path.exists(cfg["nat_ch4_file"]):
-        raise FileNotFoundError(
-            f"Natural emission input file {cfg['nat_ch4_file']} not found"
-        )
-    if "nat_n2o_file" not in cfg:
-        LOGGER.warning(
-            "Did not find prescribed nat_n2o_file or none was given. Looking in standard path",
-        )
-        cfg["nat_n2o_file"] = os.path.join(
-            os.getcwd(), "input_OTHER", "NATEMIS", "natemis_n2o.txt"
-        )
-    if not os.path.exists(cfg["nat_n2o_file"]):
-        raise FileNotFoundError(
-            f"Natural emission input file {cfg['nat_n2o_file']} not found"
-        )
-    return cfg
-
-
-def read_forc(forc_file):
-    """
-    Read in forcing from forc_file
-
-    Read in forcing file to dataframe, couple of options
-    depending on file formatting
-
-    Parameters
-    ----------
-    forc_file : str
-             Full path of forcing file to be read
-
-    Returns
-    -------
-    ndarray
-           Forcing data, or possibly a  pandas.Dataframe if
-           data is organized in several components
-
-    """
-    components = False
-    with open(forc_file, "r", encoding="utf8") as fread:
-        first_line = fread.readline()
-        if first_line[:4].lower() == "year":
-            components = True
-    if not components:
-        df_forc = np.loadtxt(forc_file)
-    else:
-        # Decide on formatting for this
-        df_forc = pd.read_csv(forc_file, index_col=0)
-    return df_forc
 
 
 class CICEROSCM:
@@ -180,39 +82,35 @@ class CICEROSCM:
               locations of files to use for concentration
               or emission runs, and start and end of run etc.
 
-        Raises
-        ------
-        FileNotFoundError
-            If forcing file is not found when forcing run is chosen
         """
         self.cfg = cut_and_check_pamset(
             {"nystart": 1750, "nyend": 2100, "emstart": 1850}, cfg
         )
-        rf_run = False
-        if "forc_file" in cfg:
-            rf_run = True
-            if not os.path.exists(cfg["forc_file"]):
-                raise FileNotFoundError(
-                    f"Forcing input file {cfg['forc_file']} not found"
-                )
-            self.rf = read_forc(cfg["forc_file"])
+        input_handler = InputHandler(cfg)
+        self.cfg["rf_run"] = input_handler.optional_pam("forc")
+        if self.cfg["rf_run"]:
+            self.rf = input_handler.get_data("forc")
         else:
-            cfg = check_inputfiles(cfg)
+            # cfg = check_inputfiles(cfg)
             pamset_emiconc = {}
             pamset_emiconc["emstart"] = self.cfg["emstart"]
             pamset_emiconc["nystart"] = self.cfg["nystart"]
             pamset_emiconc["nyend"] = self.cfg["nyend"]
-            self.ce_handler = ConcentrationsEmissionsHandler(cfg, pamset_emiconc)
-
-        self.cfg["rf_run"] = rf_run
+            if "idtm" in cfg:
+                pamset_emiconc["idtm"] = cfg["idtm"]
+            self.ce_handler = ConcentrationsEmissionsHandler(
+                input_handler, pamset_emiconc
+            )
         self.results = {}
         # Reading in solar and volcanic forcing
-        self.rf_volc_sun = self.read_in_volc_and_sun(cfg)
+        self.rf_volc_sun = {
+            "volc_n": input_handler.get_data("rf_volc_n"),
+            "volc_s": input_handler.get_data("rf_volc_s"),
+            "sun": input_handler.get_data("rf_sun"),
+        }
 
         # Add support for sending filename in cfg
-        self.rf_luc = self.read_data_on_year_row(
-            os.path.join(default_data_dir, "IPCC_LUCalbedo.txt")
-        )
+        self.rf_luc = input_handler.get_data("rf_luc")
         self.initialise_output_arrays()
 
     def initialise_output_arrays(self):
@@ -237,103 +135,10 @@ class CICEROSCM:
             "dT_glob_sea",
             "dT_NH_sea",
             "dT_SHsea",
-            "dSL(m)",
-            "dSL_thermal(m)",
-            "dSL_ice(m)",
             "Total_forcing",
         ]
         for output in output_variables:
             self.results[output] = np.zeros(self.cfg["nyend"] - self.cfg["nystart"] + 1)
-
-    def read_data_on_year_row(self, volc_datafile):
-        """
-        Read in data from file with no headers
-
-
-        Read in data from file with no headers where
-        each year is a row. Typically this is the format for
-        volcano and solar data. The years are taken to be
-        the years from the defined startyear and endyear
-
-        Parameters
-        ----------
-        volc_datafile : str
-                     Path of file to be read
-
-        Returns
-        -------
-        pandas.Dataframe
-                        Dataframe containing the data with the years as
-                        indices
-        """
-        indices = np.arange(self.cfg["nystart"], self.cfg["nyend"] + 1)
-        nrows = len(indices)
-        if self.cfg["nystart"] > 1750:
-            skiprows = self.cfg["nystart"] - 1750
-            df_data = pd.read_csv(
-                volc_datafile,
-                header=None,
-                skiprows=skiprows,
-                nrows=nrows,
-                delim_whitespace=True,
-            )
-        else:
-            df_data = pd.read_csv(
-                volc_datafile, header=None, nrows=nrows, delim_whitespace=True
-            )
-
-        df_data.set_axis(labels=indices, inplace=True)
-        return df_data
-
-    def read_in_volc_and_sun(self, cfg):
-        """
-        Read in solar and volcanic forcing and return them
-
-        Read in solar or volcanic forcing if this is chosen
-        otherwise produce empty dataframes that can be used
-        instead. If solar and volcanic forcing is added, a
-        hemispherically dependent addition is added to the
-        volcanic part, to adjust for lack of spin up.
-
-        Parameters
-        ----------
-        cfg : dict
-           Dictionary containing configurations on whether to use
-           solar and volcanic forcing or not.
-
-        Returns
-        -------
-        dict
-            Containing the dataframes for hemispheric volcanic
-            forcings and solar forcing
-        """
-        if "sunvolc" in cfg and cfg["sunvolc"] == 1:
-            # Possibly change to allow for other files
-            # And for SH to differ from NH
-            rf_volc_n = self.read_data_on_year_row(
-                os.path.join(default_data_dir, "meanVOLCmnd_ipcc_NH.txt")
-            )
-            rf_volc_s = rf_volc_n
-            # Test, adjust for not including spin up. See Gregory et al.
-            # Se regneark.
-            rf_volc_n = rf_volc_n + 0.371457071
-            rf_volc_s = rf_volc_s + 0.353195076
-            rf_sun = self.read_data_on_year_row(
-                os.path.join(default_data_dir, "solar_IPCC.txt")
-            )
-        # Add support for sending filename in cfg
-        else:
-            indices = np.arange(self.cfg["nystart"], self.cfg["nyend"] + 1)
-            rf_volc_n = pd.DataFrame(
-                data=np.zeros((self.cfg["nyend"] - self.cfg["nystart"] + 1, 12)),
-                index=indices,
-                columns=range(12),
-            )
-            rf_volc_s = rf_volc_n
-            rf_sun = pd.DataFrame(
-                data={0: np.zeros(self.cfg["nyend"] - self.cfg["nystart"] + 1)}
-            )
-        return {"volc_n": rf_volc_n, "volc_s": rf_volc_s, "sun": rf_sun}
 
     def forc_set(self, yr, rf_sun):
         """
@@ -361,10 +166,16 @@ class CICEROSCM:
         if isinstance(self.rf, np.ndarray):
             # Add luc albedo later
             forc = self.rf[row_index]  # + self.rf_luc.iloc[row_index][0]
+            fn = forc
+            fs = forc
         else:
-            forc = self.rf["total"][row_index]
+            forc = self.rf["total"][yr]
+            fn = self.rf["FORC_NH"][yr]
+            fs = self.rf["FORC_SH"][yr]
         forc = forc + rf_sun.iloc[row_index, 0]
-        return forc
+        fn = fn + rf_sun.iloc[row_index, 0]
+        fs = fs + rf_sun.iloc[row_index, 0]
+        return fn, fs, forc
 
     def add_year_data_to_output(self, values, forc, index):
         """
@@ -401,13 +212,10 @@ class CICEROSCM:
         }
         for output, name in outputs_dict.items():
             self.results[output][index] = values[name]
-        self.results["dSL(m)"][index] = values["deltsl"][0] + values["deltsl"][1]
-        self.results["dSL_ice(m)"][index] = values["deltsl"][1]
-        self.results["dSL_thermal(m)"][index] = values["deltsl"][0]
         self.results["Total_forcing"][index] = forc
 
     def _run(
-        self, cfg, pamset_udm={}, pamset_emiconc={}
+        self, cfg, pamset_udm={}, pamset_emiconc={}, make_plot=False
     ):  # pylint: disable=dangerous-default-value
         """
         Run CICEROSCM
@@ -448,9 +256,7 @@ class CICEROSCM:
                 )
 
             else:
-                forc = self.forc_set(yr, self.rf_volc_sun["sun"])
-                fs = forc
-                fn = forc
+                fn, fs, forc = self.forc_set(yr, self.rf_volc_sun["sun"])
             values = udm.energy_budget(
                 fn,
                 fs,
@@ -459,11 +265,13 @@ class CICEROSCM:
             )
             self.add_year_data_to_output(values, forc, yr - self.cfg["nystart"])
 
+        if make_plot:
+            plot_output1(cfg, self.results, self.cfg["nystart"], self.cfg["nyend"])
         if "results_as_dict" in cfg and cfg["results_as_dict"]:
             self.results.update(self.ce_handler.add_results_to_dict())
         else:
             if not self.cfg["rf_run"]:
-                self.ce_handler.write_output_to_files(cfg)
+                self.ce_handler.write_output_to_files(cfg, make_plot)
 
             self.write_data_to_file(cfg)
 
@@ -513,9 +321,6 @@ class CICEROSCM:
             "dT_glob_sea",
             "dT_NH_sea",
             "dT_SHsea",
-            "dSL(m)",
-            "dSL_thermal(m)",
-            "dSL_ice(m)",
         ]
         df_temp = pd.DataFrame(data={"Year": indices})
         if "output_prefix" in pamset:
