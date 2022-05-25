@@ -6,6 +6,8 @@ import pandas as pd
 #from pstats import SortKey
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../", "src"))
+#sys.path.append("/div/no-backup/users/ragnhibs/ciceroscm/src")
+
 from ciceroscm import CICEROSCM
 
 data_dir = os.path.join(os.path.dirname(__file__), "../", "tests", "test-data")
@@ -13,13 +15,13 @@ outdir = os.path.join(os.getcwd(), "output_test_forcing")
 #pr = cProfile.Profile()
 #pr.enable()
 
-prefix = "test_lambda"
-
+prefix = "test_nr"
+forc_file = "/div/qbo/utrics/ClimateSensitivity/updateAR6/scripts/rf_glob.txt"
 cscm = CICEROSCM(
     {
         "sunvolc": 0,
-        "nyend": 2100,
-        "forc_file": os.path.join(data_dir, "CO2_1pros.txt"),
+        "nyend": 2014,
+        "forc_file": os.path.join(data_dir, forc_file),
     },
 )
 
@@ -44,8 +46,8 @@ pamset_udm={
     "cpi": 0.4,
     "W": 4.0,
     "beto": 3.5,
-    "threstemp": 7.0,
-    "lambda": 0.840,
+    "threstemp": 0.0,
+    "lambda": 0.540,
     "mixed": 60.0,
     "foan": 0.61,
     "foas": 0.81,

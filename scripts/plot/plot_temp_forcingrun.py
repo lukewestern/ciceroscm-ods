@@ -9,7 +9,7 @@ plt.rcParams['font.size'] = 4
 #Read results:
 outdir = '/div/no-backup/users/ragnhibs/ciceroscm/scripts/output_test_forcing/'
 
-scenlist = ['test_v_sun','test_u_sun','test_lambda']
+scenlist = ['test_u_sun','test_nr']
 
 fig, axs = plt.subplots(nrows=1, ncols=3,sharex=True,figsize=(12,6))
 axs=axs.flatten()
