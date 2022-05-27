@@ -30,20 +30,33 @@ def calculate_hemispheric_forcing(tracer, q, forc_nh, forc_sh):
         Containing the two updated hemispheric forcings
         forc_nh, forc_sh
     """
-    if tracer in ("SO2", "SO4_IND"):
-        forc_nh = forc_nh + q * 1.6
-        forc_sh = forc_sh + q * 0.4
+    if tracer in (
+        "SO2",
+        "SO4_IND",
+        "BC",
+        "OC",
+        "BMB_AEROS",
+        "BMB_AEROS_OC",
+        "BMB_AEROS_BC",
+    ):
+        # Smith et al 2020
+        forc_nh = forc_nh + q * 1.47
+        forc_sh = forc_sh + q * (2 - 1.47)
     elif tracer == "TROP_O3":
-        # 1.29+0.74 != 2, update/check
-        forc_nh = forc_nh + q * 1.29  # 1.3
-        forc_sh = forc_sh + q * 0.74  # 0.7
+        # Skeie et al 2020
+        forc_nh = forc_nh + q * 1.45  # 1.3
+        forc_sh = forc_sh + q * (2 - 1.45)  # 0.7
+    elif tracer == "LANDUSE":
+        # Smith et al 2020
+        forc_nh = forc_nh + q * 1.42
+        forc_sh = forc_sh + q * (2 - 1.42)
     else:
         forc_nh = forc_nh + q
         forc_sh = forc_sh + q
     return forc_nh, forc_sh
 
 
-def perturb_emissions(perturbation_file, emissions_df):
+def perturb_emissions(input_handler, emissions_df):
     """
     Add emission perturbations to emissions_df
 
@@ -52,8 +65,9 @@ def perturb_emissions(perturbation_file, emissions_df):
 
     Parameters
     ----------
-    perturbation_file : str
-                     Path of perturbation file
+    input_handler : ciceroscm.InputHandler
+                    InputHandler that takes care of
+                    input data
     emissions_df : pandas.Dataframe
                 Dataframe of emissions
 
@@ -63,7 +77,7 @@ def perturb_emissions(perturbation_file, emissions_df):
                     Dataframe of emissions with perturbed
                     emissions added in
     """
-    pert_df = pd.read_csv(perturbation_file, index_col=None)
+    pert_df = input_handler.get_data("perturb_em")
     for row in pert_df.itertuples(index=True, name="Pandas"):
         tracer = row.component
         if row.component == "CO2" and "CO2" not in emissions_df:
@@ -90,7 +104,7 @@ class ForcingPerturbation:
             First year of perturbations
     """
 
-    def __init__(self, perturbation_file, year0):
+    def __init__(self, input_handler, year0):
         """
         Initialse forcing perturbation instance
 
@@ -105,7 +119,7 @@ class ForcingPerturbation:
         year0 : int
              First year of perturbations
         """
-        self.perturb_raw = pd.read_csv(perturbation_file)
+        self.perturb_raw = input_handler.get_data("perturb_forc")
         self.years = np.unique(self.perturb_raw["year"].values)
         self.compounds = pd.unique(self.perturb_raw["component"].values)
         self.year0 = year0

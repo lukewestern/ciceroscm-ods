@@ -1,21 +1,16 @@
 import os
+import shutil
 import sys
 
-# Adding location of source code to system path
-# os.path.dirname(__file__) gives the directory of
-# current file. Put in updated path if running script from elsewhere
-# os.path joins all the folders of a path together in a
-# system independent way (i.e. will work equally well on Windows, linux etc)
 sys.path.append(os.path.join(os.path.dirname(__file__), "../", "src"))
 
 from ciceroscm import CICEROSCM
 
 data_dir = os.path.join(os.path.dirname(__file__), "../", "tests", "test-data")
-
-
+outdir = os.path.join(os.getcwd(), "output_test") 
 cscm = CICEROSCM(
     {
-        "gaspamfile": os.path.join(data_dir, "gases_v1RCMIP.txt"),
+        "gaspam_file": os.path.join(data_dir, "gases_v1RCMIP.txt"),
         "nyend": 2100,
         "concentrations_file": os.path.join(data_dir, "ssp245_conc_RCMIP.txt"),
         "emissions_file": os.path.join(data_dir, "ssp245_em_RCMIP.txt"),
@@ -24,8 +19,6 @@ cscm = CICEROSCM(
     },
 )
 
-prefix = "test_new"
-outdir = os.path.join(os.getcwd(), "output_test")
 
-cscm._run({"output_folder": outdir, "output_prefix": prefix})
+cscm._run({"output_folder": outdir})
 

@@ -1,10 +1,11 @@
 import os
 import shutil
 
+import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 
-from ciceroscm import CICEROSCM
+from ciceroscm import CICEROSCM, input_handler
 
 
 def check_output(
@@ -61,30 +62,12 @@ def check_output_subset(
             )
 
 
-"""
-def test_ciceroscm_zero_run(test_data_dir):
-    cscm = CICEROSCM()
-    outdir = os.path.join(os.getcwd(), "output")
-    cscm._run(
-        {
-            "gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
-            "output_prefix": outdir,
-        },
-        {"forc_file": os.path.join(test_data_dir, "zero_forcing.txt")},
-    )
-
-    check_output(outdir, os.path.join(test_data_dir, "all_zero"))
-    # check_output(outdir, os.path.join(test_data_dir,"1pct_CO2_no_sunvolc"))
-
-"""
-
-
 def test_ciceroscm_run(tmpdir, test_data_dir):
     cscm = CICEROSCM(
         {
             "gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
             "nyend": 2100,
-            "forc_file": os.path.join(test_data_dir, "test_forcing.txt"),
+            "forc_data": np.loadtxt(os.path.join(test_data_dir, "test_forcing.txt")),
         },
     )
     outdir = str(tmpdir)
@@ -108,6 +91,7 @@ def test_ciceroscm_run(tmpdir, test_data_dir):
 
     check_output(outdir, os.path.join(test_data_dir, "1pct_CO2_no_sunvolc"))
 
+    ih = input_handler.InputHandler({"nyend": 2100, "sunvolc": 1})
     # 1 ppct CO2 with sunvolc
     cscm = CICEROSCM(
         {
@@ -115,6 +99,8 @@ def test_ciceroscm_run(tmpdir, test_data_dir):
             "nyend": 2100,
             "sunvolc": 1,
             "forc_file": os.path.join(test_data_dir, "CO2_1pros.txt"),
+            "rf_volc_n_data": ih.get_data("rf_volc_n") + 0.371457071,
+            "rf_volc_s_data": ih.get_data("rf_volc_s") + 0.353195076,
         },
     )
 
@@ -128,7 +114,36 @@ def test_ciceroscm_run(tmpdir, test_data_dir):
     )
 
     check_output_subset(outdir, os.path.join(test_data_dir, "nr_test_1pct_CO2"))
-    # Test NR-setup:
+    # Test hemispheric split:
+    cscm = CICEROSCM(
+        {
+            "gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
+            "nyend": 2100,
+            "forc_file": os.path.join(test_data_dir, "test_forcing_hemisplit.txt"),
+        },
+    )
+    outdir = str(tmpdir)
+    # outdir = os.path.join(os.getcwd(), "output")
+    # One year forcing:
+
+    cscm._run({"output_folder": outdir})
+
+    check_output(outdir, os.path.join(test_data_dir, "1_year_blipp"))
+    # Test component split:
+    cscm = CICEROSCM(
+        {
+            "gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
+            "nyend": 2100,
+            "forc_file": os.path.join(test_data_dir, "test_forcing_components.txt"),
+        },
+    )
+    outdir = str(tmpdir)
+    # outdir = os.path.join(os.getcwd(), "output")
+    # One year forcing:
+
+    cscm._run({"output_folder": outdir})
+
+    check_output(outdir, os.path.join(test_data_dir, "1_year_blipp"))
 
 
 """

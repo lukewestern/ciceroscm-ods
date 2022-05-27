@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 
-from ciceroscm import CICEROSCM
+from ciceroscm import CICEROSCM, input_handler
 
 
 def check_output(
@@ -70,7 +70,7 @@ def check_output_just_some_lines(
 def test_ciceroscm_run_emi(tmpdir, test_data_dir):
     cscm = CICEROSCM(
         {
-            "gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
+            "gaspam_file": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
             "nyend": 2100,
             "nystart": 1750,
             "emstart": 1850,
@@ -84,14 +84,34 @@ def test_ciceroscm_run_emi(tmpdir, test_data_dir):
     outdir = str(tmpdir)
     # One year forcing:
 
-    cscm._run({"output_folder": outdir})
+    cscm._run(
+        {"output_folder": outdir},
+        pamset_udm={
+            "rlamdo": 15.1,
+            "akapa": 0.657,
+            "cpi": 0.208,
+            "W": 2.2,
+            "beto": 6.9,
+            "lambda": 0.606,
+            "mixed": 107.0,
+        },
+        pamset_emiconc={
+            "qbmb": 0.0,
+            "qo3": 0.5,
+            "qdirso2": -0.3701,
+            "qindso2": -0.4163,
+            "qbc": 0.163,
+            "qoc": -0.084,
+            "qh2o_ch4": 0.171,
+        },
+    )
 
     check_output(outdir, os.path.join(test_data_dir, "ssp245_emis"))
     check_output_just_some_lines(
         outdir,
         os.path.join(test_data_dir, "ssp245_emis"),
         files=["output_forc.txt"],
-        lines=19,
+        lines=14,
     )
     check_output_just_some_lines(
         outdir,
@@ -110,7 +130,7 @@ def test_ciceroscm_short_run(tmpdir, test_data_dir):
     emstart = 1950
     cscm = CICEROSCM(
         {
-            "gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
+            "gaspam_file": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
             "nystart": nystart,
             "emstart": emstart,
             "nyend": nyend,
@@ -118,6 +138,26 @@ def test_ciceroscm_short_run(tmpdir, test_data_dir):
             "emissions_file": os.path.join(test_data_dir, "ssp245_em_RCMIP.txt"),
             "nat_ch4_file": os.path.join(test_data_dir, "natemis_ch4.txt"),
             "nat_n2o_file": os.path.join(test_data_dir, "natemis_n2o.txt"),
+            "idtm": 24,
+            "sunvolc": 1,
+            "rf_luc_data": pd.read_csv(
+                os.path.join(test_data_dir, "land_use_erf_ar6.txt"),
+                header=None,
+                skiprows=1,
+                index_col=0,
+            ),
+            "rf_sun_data": pd.read_csv(
+                os.path.join(test_data_dir, "solar_erf_ar6.txt"),
+                header=None,
+                skiprows=1,
+                index_col=0,
+            ),
+            "rf_volc_data": pd.read_csv(
+                os.path.join(test_data_dir, "volcanic_erf_ar6.txt"),
+                header=None,
+                skiprows=1,
+                index_col=0,
+            ),
         },
     )
 
@@ -147,9 +187,6 @@ def test_ciceroscm_short_run(tmpdir, test_data_dir):
         "dT_glob_sea",
         "dT_NH_sea",
         "dT_SHsea",
-        "dSL(m)",
-        "dSL_thermal(m)",
-        "dSL_ice(m)",
     ]
     for key in expected_keys:
         assert key in cscm.results
@@ -172,19 +209,22 @@ def test_ciceroscm_short_run(tmpdir, test_data_dir):
 def test_ciceroscm_run_conc(tmpdir, test_data_dir):
     cscm = CICEROSCM(
         {
-            "gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
+            "gaspam_file": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
             "nyend": 2100,
             "conc_run": True,
             "concentrations_file": os.path.join(test_data_dir, "ssp245_conc_RCMIP.txt"),
             "emissions_file": os.path.join(test_data_dir, "ssp245_em_RCMIP.txt"),
             "nat_ch4_file": os.path.join(test_data_dir, "natemis_ch4.txt"),
             "nat_n2o_file": os.path.join(test_data_dir, "natemis_n2o.txt"),
+            "sunvolc": 1,
         },
     )
     outdir = str(tmpdir)
+    # outdir_save = os.path.join(os.getcwd(), "output")
+
     # One year forcing:
 
-    cscm._run({"output_folder": outdir})
+    cscm._run({"output_folder": outdir}, pamset_emiconc={"qh2o_ch4": 0.171})
 
     check_output(
         outdir,
@@ -192,55 +232,67 @@ def test_ciceroscm_run_conc(tmpdir, test_data_dir):
         files=["output_conc.txt", "output_em.txt", "output_forc.txt", "output_ohc.txt"],
     )
 
-    """
-    # 1pct CO2 without sunvolc
+
+def test_run_with_data_not_files(tmpdir, test_data_dir):
+    ih = input_handler.InputHandler({"nystart": 1750, "nyend": 2100, "emstart": 1850})
+    cscm = CICEROSCM(
+        {
+            "gaspam_data": input_handler.read_components(
+                os.path.join(test_data_dir, "gases_v1RCMIP.txt")
+            ),
+            "nyend": 2100,
+            "nystart": 1750,
+            "emstart": 1850,
+            "concentrations_data": input_handler.read_inputfile(
+                os.path.join(test_data_dir, "ssp245_conc_RCMIP.txt"), True, 1750, 2100
+            ),
+            "emissions_data": ih.read_emissions(
+                os.path.join(test_data_dir, "ssp245_em_RCMIP.txt")
+            ),
+            "nat_ch4_data": input_handler.read_natural_emissions(
+                os.path.join(test_data_dir, "natemis_ch4.txt"), "CH4"
+            ),
+            "nat_n2o_data": input_handler.read_natural_emissions(
+                os.path.join(test_data_dir, "natemis_n2o.txt"), "N2O"
+            ),
+        },
+    )
+    # outdir_save = os.path.join(os.getcwd(), "output")
+    outdir = str(tmpdir)
+    # One year forcing:
 
     cscm._run(
-        {
-            "gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
-            "output_prefix": outdir,
+        {"output_folder": outdir},
+        pamset_udm={
+            "rlamdo": 15.1,
+            "akapa": 0.657,
+            "cpi": 0.208,
+            "W": 2.2,
+            "beto": 6.9,
+            "lambda": 0.606,
+            "mixed": 107.0,
         },
-        {"forc_file": os.path.join(test_data_dir, "CO2_1pros.txt")},
+        pamset_emiconc={
+            "qbmb": 0.0,
+            "qo3": 0.5,
+            "qdirso2": -0.3701,
+            "qindso2": -0.4163,
+            "qbc": 0.163,
+            "qoc": -0.084,
+            "qh2o_ch4": 0.171,
+        },
     )
 
-    check_output(outdir, os.path.join(test_data_dir, "1pct_CO2_no_sunvolc"))
-
-    #1 ppct CO2 with sunvolc
-    cscm._run(
-        {
-            "gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
-            "output_prefix": outdir, "sunvolc": 1,"nyend": 2100,
-        },
-        {"forc_file": os.path.join(test_data_dir, "CO2_1pros.txt")},
+    check_output(outdir, os.path.join(test_data_dir, "ssp245_emis"))
+    check_output_just_some_lines(
+        outdir,
+        os.path.join(test_data_dir, "ssp245_emis"),
+        files=["output_forc.txt"],
+        lines=14,
     )
-
-    check_output(outdir, os.path.join(test_data_dir, "1pct_CO2"))
-    # check_output(outdir, os.path.join(test_data_dir,"1pct_CO2_no_sunvolc"))
-    cscm._run(
-        {
-            "gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),
-            "output_prefix": outdir_save, "sunvolc": 1,"nyend": 2100,
-            "threstemp": 0,
-        },
-        {"forc_file": os.path.join(test_data_dir, "CO2_1pros.txt")},
+    check_output_just_some_lines(
+        outdir,
+        os.path.join(test_data_dir, "ssp245_emis"),
+        files=["output_temp.txt"],
+        lines=16,
     )
-
-    check_output_subset(outdir_save, os.path.join(test_data_dir, "nr_test_1pct_CO2"))
-    #Test NR-setup:
-    """
-
-
-"""
-def test_cfg(test_data_dir):
-    cscm = CICEROSCM()
-    # cscm._run(
-    #    {"gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"),},
-    #    {"forc_file": os.path.join(test_data_dir, "CO2_1pros.txt")},
-    # )
-
-
-#    cscm._run(
-#        {"gaspamfile": os.path.join(test_data_dir, "gases_v1RCMIP.txt"), "sunvolc": 1},
-#        {"forc_file": os.path.join(test_data_dir, "CO2_1pros.txt")},
-#    )
-"""
