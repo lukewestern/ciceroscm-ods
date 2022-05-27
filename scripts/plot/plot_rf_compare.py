@@ -99,6 +99,7 @@ df_rf['aerosol_direct'].plot(ax=axs,color='purple',label='SCM ' + scen + ' sum a
 df_rf['SO4_IND'].plot(ax=axs,color='orange',label='SCM ' + scen + ' SO4 indirect')
 
 
+print(df_rf.loc[2010])
 
 axs.legend()
 

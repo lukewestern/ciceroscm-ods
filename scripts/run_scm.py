@@ -20,15 +20,26 @@ prefix = "test_new"
 
 cscm = CICEROSCM(
     {
-        "gaspam_file": os.path.join(data_dir, "gases_v1RCMIP.txt"),
-        "nyend": 2100,
+        "gaspam_file":"/div/qbo/utrics/CSCM/input/gases_v1RCMIP_test.txt",
+        "nyend": 2019,
         "nystart": 1750,
         "concentrations_file": os.path.join(data_dir, "ssp245_conc_RCMIP.txt"),
         "emissions_file": os.path.join(data_dir, "ssp245_em_RCMIP.txt"),
         "nat_ch4_file": os.path.join(data_dir, "natemis_ch4.txt"),
         "nat_n2o_file": os.path.join(data_dir, "natemis_n2o.txt"),
+        "sunvolc":0 
+
      },
 )
+#"gaspam_file": os.path.join(data_dir, "gases_v1RCMIP.txt"),
+#,
+#        "rf_sun_data":pd.read_csv("/div/qbo/utrics/RadiativeForcing/RFforSCM/solar_erf_ar6_TEST.txt", header=None, skiprows=1, index_col=0)
+#"rf_luc_data":pd.read_csv("/div/qbo/utrics/RadiativeForcing/RFforSCM/land_use_erf_ar6_TEST.txt", header=None, skiprows=1, index_col=0)   
+#  "rf_volc_data":pd.read_csv("/div/qbo/utrics/RadiativeForcing/RFforSCM/volcanic_erf_ar6.txt", header=None, skiprows=1, index_col=0),
+
+#"rf_sun_file": "/div/qbo/utrics/RadiativeForcing/RFforSCM/solar_erf_ar6.txt"
+#"rf_sun_data":pd.read_csv("/div/qbo/utrics/RadiativeForcing/RFforSCM/solar_erf_ar6.txt", header=None, skiprows=1, index_col=0),
+#        "rf_volcanic_data":pd.read_csv("/div/qbo/utrics/RadiativeForcing/RFforSCM/volcanic_erf_ar6.txt", header=None, skiprows=1, index_col=0)
 #        "sunvolc":1,
 #        "rf_sun_data":pd.read_csv("/div/qbo/utrics/RadiativeForcing/RFforSCM/solar_erf_ar6.txt", header=None, skiprows=1, index_col=0)
 #"emstart":2000,
