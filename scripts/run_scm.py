@@ -1,5 +1,6 @@
 import os
 import sys
+import pandas as pd
 
 # Adding location of source code to system path
 # os.path.dirname(__file__) gives the directory of
@@ -21,15 +22,18 @@ cscm = CICEROSCM(
     {
         "gaspam_file": os.path.join(data_dir, "gases_v1RCMIP.txt"),
         "nyend": 2100,
+        "nystart": 1750,
         "concentrations_file": os.path.join(data_dir, "ssp245_conc_RCMIP.txt"),
         "emissions_file": os.path.join(data_dir, "ssp245_em_RCMIP.txt"),
         "nat_ch4_file": os.path.join(data_dir, "natemis_ch4.txt"),
         "nat_n2o_file": os.path.join(data_dir, "natemis_n2o.txt"),
-    },
+     },
 )
+#        "sunvolc":1,
+#        "rf_sun_data":pd.read_csv("/div/qbo/utrics/RadiativeForcing/RFforSCM/solar_erf_ar6.txt", header=None, skiprows=1, index_col=0)
+#"emstart":2000,
+#"rf_sun_file": "/div/qbo/utrics/RadiativeForcing/RFforSCM/solar_erf_ar6.txt"
+#"rf_volc_file":"/div/qbo/utrics/RadiativeForcing/RFforSCM/volcanic_erf_ar6.txt",
 
-
-
-
-cscm._run({"output_folder": outdir, "output_prefix": prefix}, make_plot=True)
+cscm._run({"output_folder": outdir, "output_prefix": prefix}, make_plot=False)
 

@@ -13,8 +13,8 @@ plt.rcParams['font.size'] = 4
 
 #Read results:
 outdir = '/div/no-backup/users/ragnhibs/ciceroscm/scripts/output_test/'
-scen = 'test'
-df_rf=pd.read_csv(outdir+'/output_forc.txt', sep='\t', index_col=0)
+scen = 'test_new'
+df_rf=pd.read_csv(outdir+'/'+scen+'_forc.txt', sep='\t', index_col=0)
 #print(df_rf)
 
 

@@ -10,8 +10,8 @@ plt.rcParams['font.size'] = 8
 
 #Read results:
 outdir = '/div/no-backup/users/ragnhibs/ciceroscm/scripts/output_test/'
-scen = 'test'
-df_temp=pd.read_csv(outdir+'/output_temp.txt', sep='\t', index_col=0)
+scen = 'test_new'
+df_temp=pd.read_csv(outdir+'/'+scen+'_temp.txt', sep='\t', index_col=0)
 print(df_temp)
 
 antcomp = len(df_temp.columns)

@@ -8,8 +8,8 @@ plt.rcParams['font.size'] = 4
 
 #Read results:
 outdir = '/div/no-backup/users/ragnhibs/ciceroscm/scripts/output_test/'
-scen = 'test'
-df_temp=pd.read_csv(outdir+'/output_temp.txt', sep='\t', index_col=0)
+scen = 'test_new'
+df_temp=pd.read_csv(outdir+'/'+scen+'_temp.txt', sep='\t', index_col=0)
 print(df_temp)
 
 antcomp = len(df_temp.columns)
@@ -51,18 +51,18 @@ axs[2].legend()
 axs[0].axhline(y=0,color='k',linestyle=':',linewidth=0.5)
 
 
-fig, axs = plt.subplots(nrows=1, ncols=2,sharex=True,figsize=(12,6))
-axs=axs.flatten()
-fig.suptitle('CICERO SCM simulation, SLR (!!!!!need to be revised-checked!!!!)')
-df_temp['dSL(m)'].plot(ylabel='Sea level rise [m]',ax=axs[0],label=scen)
+#fig, axs = plt.subplots(nrows=1, ncols=2,sharex=True,figsize=(12,6))
+#axs=axs.flatten()
+#fig.suptitle('CICERO SCM simulation, SLR (!!!!!need to be revised-checked!!!!)')
+#df_temp['dSL(m)'].plot(ylabel='Sea level rise [m]',ax=axs[0],label=scen)
 
-df_temp['dSL(m)'].plot(ylabel='Sea level rise [m]',ax=axs[1],label='dSL(m)')
-df_temp['dSL_thermal(m)'].plot(ylabel='Sea level rise [m]',
-                               ax=axs[1],label='dSL_thermal(m)')
-df_temp['dSL_ice(m)'].plot(ylabel='Sea level rise [m]',
-                           ax=axs[1],label='dSL_ice(m)')
+#df_temp['dSL(m)'].plot(ylabel='Sea level rise [m]',ax=axs[1],label='dSL(m)')
+#df_temp['dSL_thermal(m)'].plot(ylabel='Sea level rise [m]',
+#                               ax=axs[1],label='dSL_thermal(m)')
+#df_temp['dSL_ice(m)'].plot(ylabel='Sea level rise [m]',
+#                           ax=axs[1],label='dSL_ice(m)')
 
-axs[0].legend()
-axs[1].legend()
+#axs[0].legend()
+#axs[1].legend()
 
 plt.show()

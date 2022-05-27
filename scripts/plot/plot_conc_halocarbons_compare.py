@@ -20,8 +20,8 @@ plt.rcParams['font.size'] = 4
 
 #Read results:
 outdir = '/div/no-backup/users/ragnhibs/ciceroscm/scripts/output_test/'
-scen = 'test'
-df_conc=pd.read_csv(outdir+'/output_conc.txt', sep='\t', index_col=0)
+scen = 'test_new'
+df_conc=pd.read_csv(outdir+'/'+scen+'_conc.txt', sep='\t', index_col=0)
 #print(df_conc)
 
 #Read components, to get the units:

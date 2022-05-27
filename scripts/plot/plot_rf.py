@@ -9,8 +9,8 @@ plt.rcParams['font.size'] = 4
 
 #Read results:
 outdir = '/div/no-backup/users/ragnhibs/ciceroscm/scripts/output_test/'
-scen = 'test'
-df_rf=pd.read_csv(outdir+'/output_forc.txt', sep='\t', index_col=0)
+scen = 'test_new'
+df_rf=pd.read_csv(outdir+'/'+scen+'_forc.txt', sep='\t', index_col=0)
 #print(df_rf)
 
 #Read components, to get the units:
@@ -63,6 +63,6 @@ for i,c in enumerate(complist):
     axs[i].set_title(comp)
     axs[i].legend()
     axs[i].axhline(y=0,color='k',linestyle=':',linewidth=0.5)
-
+print(df_rf.loc[2011])
 plt.show()
 exit()
