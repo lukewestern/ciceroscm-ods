@@ -244,6 +244,9 @@ class ConcentrationsEmissionsHandler:
         pamset : dict
            list of physical parameters to define the run
         """
+        self.o3pert = input_handler.o3pert
+        self.taupert = input_handler.taupert
+        self.Faci = input_handler.Faci
         self.df_gas = input_handler.get_data("gaspam")
         self.conc = {}
         self.forc = {}
@@ -269,6 +272,7 @@ class ConcentrationsEmissionsHandler:
         )
         # not really needed, but I guess the linter will complain...
         self.reset_with_new_pams(pamset, preexisting=False)
+        
 
     def reset_with_new_pams(self, pamset, preexisting=True):
         """
@@ -297,6 +301,7 @@ class ConcentrationsEmissionsHandler:
             if tracer != "CO2.1":
                 self.conc[tracer] = {}
                 self.forc[tracer] = np.zeros(years_tot)
+        self.conc["eesc"] = {}
         self.forc["Total_forcing"] = np.zeros(years_tot)
         self.co2_hold = {
             "yCO2": 0.0,
@@ -369,6 +374,52 @@ class ConcentrationsEmissionsHandler:
         for comp, mult in self.pamset["br_dict"].items():
             sumbr = sumbr + mult * (self.conc[comp][yr] - self.conc[comp][yr0])
         return sumcl, sumbr
+    
+    def calculate_eesc_quantities(self, yr):
+        yr0 = int(self.years[0])
+        if yr <= (yr0+3):
+            return 0.0, 0.0
+        sumcl = 0
+        sumbr = 0
+        frf = {
+            'CFC-11': 0.47,
+            'CFC-12': 0.24,
+            'CFC-13': 0.06,
+            'CFC-112': 0.3,
+            'CFC-112a': 0.53,
+            'CFC-113': 0.30,
+            'CFC-113a': 0.29,
+            'CFC-114': 0.13,
+            'CFC-114a': 0.32,
+            'CFC-115': 0.07,
+            'CCl4': 0.56,
+            'CH3CCl3': 0.61,
+            'HCFC-133a':0.4,
+            'HCFC-22': 0.15,
+            'HCFC-141b': 0.34,
+            'HCFC-142b': 0.17,
+            "HCFC-123": 0.66,
+            'HCFC-124': 0.32,
+            'HCFC-31':0.67,
+            'H-1211': 0.65,
+            'H-1202': 0.67,
+            'H-1301': 0.32,
+            'H-2402': 0.66,
+            'CH3Br': 0.6,
+            'CH3Cl': 0.44
+        }
+        if yr > 1900:
+            for comp, mult in self.pamset["cl_dict"].items():
+                num = self.conc[comp][yr] - self.conc[comp][yr0]
+                # if comp in frf:
+                sumcl += frf[comp]*num*mult
+            for comp, mult in self.pamset["br_dict"].items():
+                num = self.conc[comp][yr] - self.conc[comp][1900]
+                # if comp in frf:
+                sumbr += frf[comp]*num*mult
+            return sumcl, sumbr
+        else:
+            return 0.0, 0.0
 
     def calculate_forc_three_main(self, yr):  # pylint: disable=too-many-locals
         """
@@ -520,6 +571,21 @@ class ConcentrationsEmissionsHandler:
                 self.pamset["qo3"] - forc_pre_emstart
             )
         return q
+    
+    
+    def calc_eesc(self, yr):
+        inweights = np.array([2.51540874e-01, 2.85588337e-01, 1.83647911e-01, 1.09745490e-01,
+            6.53733900e-02, 3.93816364e-02, 2.40508141e-02, 1.48813664e-02,
+            9.31632867e-03, 5.89277991e-03, 3.76106432e-03, 2.41954343e-03,
+            1.56739065e-03, 1.02163109e-03, 6.69558679e-04, 4.40970373e-04,
+            2.91703198e-04, 1.93730846e-04, 1.29128440e-04, 8.63517467e-05])
+        sumcl = 0
+        sumbr = 0
+        for iyrm in range(20):
+            isumcl, isumbr= self.calculate_eesc_quantities(yr-(iyrm+1))
+            sumcl += isumcl*inweights[iyrm]
+            sumbr += isumbr*inweights[iyrm]
+        return (sumcl+sumbr*60)
 
     def conc2forc(self, yr, rf_luc, rf_sun):  # pylint: disable=too-many-branches
         """
@@ -564,6 +630,7 @@ class ConcentrationsEmissionsHandler:
         # Intialising with the combined values from CO2, N2O and CH4
         tot_forc, forc_nh, forc_sh = self.calculate_forc_three_main(yr)
         yr_0 = self.years[0]
+        eesc = self.calc_eesc(yr) # Calculate the EESC
         # Finish per tracer calculations, add per tracer to printable df and sum the total
         for tracer in self.df_gas.index:
             if tracer in ["CO2", "N2O", "CH4"]:
@@ -588,7 +655,14 @@ class ConcentrationsEmissionsHandler:
                         self.emis[ref_emission_species[tracer][0]][yr]
                         - self.emis[ref_emission_species[tracer][0]][yr_0]
                     ) / erefyr
-                    q = ref_emission_species[tracer][1] * frac_em
+                    if tracer == "SO4_IND":
+                        q = ref_emission_species[tracer][1] * frac_em * (1 + self.Faci*eesc)
+                    elif tracer == "SO2":
+                        q = ref_emission_species[tracer][1] * frac_em * (1 + self.Faci*eesc)
+                    elif tracer == "OC":
+                        q = ref_emission_species[tracer][1] * frac_em * (1 + self.Faci*eesc)
+                    else:
+                        q = ref_emission_species[tracer][1] * frac_em 
 
             elif (
                 tracer in self.df_gas.index
@@ -605,19 +679,22 @@ class ConcentrationsEmissionsHandler:
                     * self.df_gas["SARF_TO_ERF"][tracer]
                 )
             elif tracer == "STRAT_O3":
-                sumcl, sumbr = self.calculate_strat_quantities(yr - 3)
-                # Updated according to IPCC AR4.
-                # Multiply by factor 0.287737 (=-0.05/-0.17377, AR4/SCM)
-                q = (
-                    -(
-                        # self.pamset["qo3"]
-                        0.05
-                        / 0.17377
-                        * (0.000552 * (sumcl) + 3.048 * sumbr)
-                    )
-                    / 1000.0
-                    * self.df_gas["SARF_TO_ERF"][tracer]
-                )
+                # sumcl, sumbr = self.calculate_strat_quantities(yr - 3)
+                # # Updated according to IPCC AR4.
+                # # Multiply by factor 0.287737 (=-0.05/-0.17377, AR4/SCM)
+                # q = (
+                #     -(
+                #         # self.pamset["qo3"]
+                #         0.05
+                #         / 0.17377
+                #         * (0.000552 * (sumcl) + 3.048 * sumbr)
+                #     )
+                #     / 1000.0
+                #     * self.df_gas["SARF_TO_ERF"][tracer]
+                # )
+                fitcoef = (self.o3pert)*1e-5 
+                sarffit = fitcoef*eesc
+                q = sarffit * self.df_gas["SARF_TO_ERF"][tracer]
             elif tracer == "STRAT_H2O":
                 q = (
                     self.pamset["qh2o_ch4"] * self.forc["CH4"][yr - yr_0]
@@ -635,7 +712,7 @@ class ConcentrationsEmissionsHandler:
             )
             tot_forc = tot_forc + q
             # print("Forcer: %s, tot_forc: %f, FN: %f, FS: %f, q: %f"%(tracer, tot_forc, forc_nh, forc_sh, q)
-
+            
         # Adding forcing perturbations if they exist:
         if "forc_pert" in self.pamset:
             if self.pamset["forc_pert"].check_if_year_in_pert(yr):
@@ -691,6 +768,7 @@ class ConcentrationsEmissionsHandler:
         self.add_row_of_zeros_conc(yr)
 
         for tracer in self.df_gas.index:
+            
             # something something postscenario...?
             if self.df_gas["CONC_UNIT"][tracer] == "-":
                 # Forcing calculated from emissions
@@ -705,7 +783,7 @@ class ConcentrationsEmissionsHandler:
                 conc_local = self.conc[tracer][yr - 1]
             else:
                 conc_local = self.conc_in[tracer][yr]
-
+            
             q = 1.0 / self.df_gas["TAU1"][tracer]
 
             if tracer == "CH4":
@@ -744,6 +822,15 @@ class ConcentrationsEmissionsHandler:
         float
              Concentrations adjusted for lifetime / feedback
         """
+        
+        ### My bit on methane lifetime. Use fit to eesc to estimated reduction in
+        # CH4 IRF to halocarbons using multimodel estimate in AR6.
+        # 1) Calculate EESC
+        eesc = self.calc_eesc(yr)
+        
+        # Use the same approach already established, where the OH is adjusted
+        # by a factor that is a function of the eesc relative to 2000.
+        
         ch4_wigley_exp = -0.238
         if self.pamset["lifetime_mode"] == "TAR":
             # 1751 is reference conc in 2000
@@ -752,14 +839,38 @@ class ConcentrationsEmissionsHandler:
                 + 0.0042 * (self.emis["NOx"][yr] - self.emis["NOx"][2000])
                 - 0.000105 * (self.emis["CO"][yr] - self.emis["CO"][2000])
                 - 0.000315 * (self.emis["NMVOC"][yr] - self.emis["NMVOC"][2000])
+                + self.taupert * eesc
             )
             q = q * (dln_oh + 1)
         elif self.pamset["lifetime_mode"] == "CONSTANT_12":
             q = 1.0 / 12.0
         elif self.pamset["lifetime_mode"] == "WIGLEY":
             q = q * (((conc_local / 1700.0)) ** (ch4_wigley_exp))
-
+        
         q = q + 1.0 / self.df_gas["TAU2"]["CH4"] + 1.0 / self.df_gas["TAU3"]["CH4"]
+
+        
+        # return q    
+        ### My bit on methane lifetime. Use fit to of eesc to estimated reduction in
+        # CH4 lifetime due to halocarbons using multimodel estimate in Thornhill et al.
+        # Supplement, Table S9. 
+        # 1) Calculate EESC
+        # inweights = np.array([2.51540874e-01, 2.85588337e-01, 1.83647911e-01, 1.09745490e-01,
+        #             6.53733900e-02, 3.93816364e-02, 2.40508141e-02, 1.48813664e-02,
+        #             9.31632867e-03, 5.89277991e-03, 3.76106432e-03, 2.41954343e-03,
+        #             1.56739065e-03, 1.02163109e-03, 6.69558679e-04, 4.40970373e-04,
+        #             2.91703198e-04, 1.93730846e-04, 1.29128440e-04, 8.63517467e-05])
+        # sumcl = 0
+        # sumbr = 0
+        # for iyrm in range(20):
+        #     isumcl, isumbr= self.calculate_eesc_quantities(yr-(iyrm+1))
+        #     sumcl += isumcl*inweights[iyrm]
+        #     sumbr += isumbr*inweights[iyrm]
+        # eesc = (sumcl+sumbr*60)
+        # # 2) Adjust lifetime by factor
+        # ch4_fact = (-0.0030+self.taupert)/100.
+
+        # q = 1./(1./(q + 1.0 / self.df_gas["TAU2"]["CH4"] + 1.0 / self.df_gas["TAU3"]["CH4"]) * (1+ch4_fact*eesc))
 
         return q
 

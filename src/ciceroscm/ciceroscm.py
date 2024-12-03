@@ -61,7 +61,7 @@ class CICEROSCM:
     # pylint: disable=too-many-instance-attributes
     # Consider whether this can be cut back later
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, o3pert=0., taupert=0., Faci=0.):
         """
         Intialise CICEROSCM
 
@@ -84,11 +84,14 @@ class CICEROSCM:
               or emission runs, and start and end of run etc.
 
         """
+        self.o3pert = o3pert
+        self.taupert = taupert
+        self.Faci = Faci
         self.cfg = cut_and_check_pamset(
             {"nystart": 1750, "nyend": 2100, "emstart": 1850, "idtm": 24}, cfg
         )
         cfg.update(self.cfg)
-        input_handler = InputHandler(cfg)
+        input_handler = InputHandler(cfg, o3pert, taupert, Faci)
         self.cfg["rf_run"] = input_handler.optional_pam("forc")
         if self.cfg["rf_run"]:
             self.rf = input_handler.get_data("forc")

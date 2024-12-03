@@ -212,7 +212,7 @@ class InputHandler:
     data
     """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, o3pert, taupert, Faci):
         """
         Initialise input handler
 
@@ -228,6 +228,9 @@ class InputHandler:
         FileNotFoundError
             If forcing file is not found when forcing run is chosen
         """
+        self.o3pert = o3pert
+        self.taupert = taupert
+        self.Faci = Faci
         self.read_methods = {
             "forc": read_forc,
             "gaspam": read_components,
@@ -511,7 +514,7 @@ class InputHandler:
             )
         else:
             df_data = pd.read_csv(
-                volc_datafile, header=None, nrows=nrows, delim_whitespace=True
+                volc_datafile, header=None, nrows=nrows, sep='\s+'
             )
 
         df_data.set_axis(labels=indices)
