@@ -1,3 +1,14 @@
+# This is a fork of the CICERO-SCM (labelled CICERO-SCM-ODS)
+
+Please see [this repository](https://github.com/ciceroOslo/ciceroscm) for the most up to date version of the CICERO-SCM.
+
+This forked version has been edited to include additional feedbacks from ozone-depleting substances, and was used to create an ensemble of radiative forcing estimates to explore the uncertainty.
+
+The ensemble output is available at 10.5281/zenodo.16944729
+
+More information has been documented in a research article currently under review.
+
+
 # ciceroscm
 Python version of the CICERO-SCM simple climate model/emulator
 
